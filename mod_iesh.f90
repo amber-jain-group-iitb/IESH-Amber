@@ -20,6 +20,8 @@ real*8 beta,gamma_D,lambda_B,V_reorg,V_barrier
 real*8 omg_c,omg_scaled
 real*8 s01,s02,x_cr
 real*8,allocatable :: mass(:),omg(:)
+real*8,allocatable :: knots(:),weights(:)
+
 
 !! Input/Output
 real*8 cnt_frust,cnt_collapse,cnt_init,cnt_term
@@ -132,6 +134,7 @@ subroutine setup
   !-----------------------------------------------------------------  
   i=nsteps/nstep_avg+1
   allocate(pop(nquant,i),pop_surf(nquant,i),pop_amp(nquant,i))
+  allocate(knots(nquant/2),weights(nquant/2))
   allocate(rho(nquant,nquant,i))
   allocate(x(nclass),v(nclass),acc(nclass))
   allocate(x_old(nclass),v_old(nclass),acc_old(nclass))
@@ -1108,7 +1111,6 @@ subroutine setup_parameters
   real*8 c_0,c_e
   real*8 omg_max,delw
   real*8 rho
-  real*8 knots(nquant/2),weights(nquant/2)
 
   mass=2000.d0*au2kg
 !  omg_max=3*omg_B
@@ -1138,8 +1140,8 @@ subroutine setup_parameters
   do i=1,nquant/2
     e_metal(nquant/2-i+1)=-band_width/2.d0*(1/2.d0+knots(i)/2.d0)
     e_metal(nquant/2+i)=band_width/2.d0*(1/2.d0+knots(i)/2.d0)
-    Vc(nquant/2-i+1)=sqrt(gama_coup/(2*pi))*sqrt(band_width/2.d0*weights(i))
-    Vc(nquant/2+i)=sqrt(gama_coup/(2*pi))*sqrt(band_width/2.d0*weights(i))
+!    Vc(nquant/2-i+1)=sqrt(gama_coup/(2*pi))*sqrt(band_width/2.d0*weights(i))
+!    Vc(nquant/2+i)=sqrt(gama_coup/(2*pi))*sqrt(band_width/2.d0*weights(i))
   enddo
 
 !  rho=(nquant-1)/(band_width)
@@ -1158,18 +1160,26 @@ subroutine compute_potential(H_diab,delV_dels)
   real*8,intent(out) :: H_diab(nquant,nquant),delV_dels(nquant,nquant,nclass)
   integer i
   real*8 h1,dh1(nclass)
+  real*8 coup
 
   H_diab=0.d0
   delv_dels=0.d0
 
   h1=0.5*mass(1)*omg_B**2*((x(1)-g_coup)**2-x(1)**2)+V_exothermicity
   dh1(1) = mass(1)*omg_B**2*(-g_coup)
+  coup = sqrt(gama_coup/(2*pi))
 
   H_diab(1,1)=h1
   delv_dels(1,1,:)=dh1
 
   !H_diab(1,2:nquant)=Vc
   !H_diab(2:nquant,1)=Vc
+
+  do i=1,nquant/2
+    Vc(nquant/2-i+1)=coup*sqrt(band_width/2.d0*weights(i))
+    Vc(nquant/2+i)=coup*sqrt(band_width/2.d0*weights(i))
+  enddo
+
 
   do i=2,nquant
     H_diab(i,i)=e_metal(i)
